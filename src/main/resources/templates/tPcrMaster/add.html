@@ -1,0 +1,272 @@
+    <!DOCTYPE HTML>
+    <html xmlns:th="http://www.thymeleaf.org" xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+          layout:decorate="~{layout}">
+    <head>
+        <title>PCR List | Add New</title>
+        <style>
+            label {
+                font-size: 15px;
+            }
+            input::placeholder, textarea::placeholder {
+                font-size: 13px;
+            }
+            input {
+                font-size: 13px;
+            }
+            .bg-green {
+                --bs-bg-opacity: 1;
+                background-color: rgb(210 233 214) !important;
+            }
+            .bg-yellow {
+                --bs-bg-opacity: 1;
+                background-color: rgb(237 230 196) !important;
+            }
+            a {
+                text-decoration: none;
+            }
+            .card{
+                min-height: 400px;
+            }
+        </style>
+    </head>
+    <body>
+    <div layout:fragment="content">
+        <div id="boxes" class="row">
+            <div class="col-md-4 bg" th:each="pcr : ${pcrs}" >
+                    <div class="card text-dark mb-2" th:classappend="${pcr.className}" >
+                        <div class="card-body">
+                            <form action="/tPcrMasters/add" method="post" novalidate="" class="form">
+                                <input type="hidden" class="pcrId" name="pcrId" th:value="${pcr.pcrId}">
+                                <div class="row mb-3">
+                                    <div class="col-md-12">
+                                        <input type="text" class="form-control clientName" name="clientName" th:value="${pcr.clientName}" value="" placeholder="Client Name" maxlength="100"  />
+                                    </div>
+                                </div>
+                                <div class="row mb-3">
+                                    <div class="col-md-12">
+                                        <textarea class="form-control note" name="notes" placeholder="Notes" th:text="${pcr.notes}"  maxlength="255"  rows="5" ></textarea>
+                                    </div>
+                                </div>
+                                <div class="row mb-3">
+                                    <div class="col-md-12">
+                                        <label class="col-md-12">
+                                            <span><a th:if="${pcr.fileName}" th:href="@{'/pcr/download/' + ${pcr.pcrId}}">Download</a></span>
+                                        </label>
+                                        <input class="form-control file" type="file" name="file" accept=".pdf,.doc,.docx"  >
+                                    </div>
+                                </div>
+                                <div class="row">
+                                    <div class="col-md-4">
+                                        <label class="col-md-12">
+                                            <span>Date Approved</span>
+                                        </label>
+                                        <div class="col-md-12">
+                                            <input type="text" class="form-control js-datepicker dateApproved" th:value="${#temporals.format(pcr.dateApproved, 'MM/dd/yyyy')}" name="dateApproved" placeholder="Enter Date" />
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label class="col-md-12">
+                                            <span>Date Completed</span>
+                                        </label>
+                                        <div class="col-md-12">
+                                            <input type="text" class="form-control js-datepicker dateCompleted"  th:value="${#temporals.format(pcr.dateCompleted, 'MM/dd/yyyy')}"  name="dateCompleted" value="" placeholder="Enter Date"   />
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label class="col-md-12">
+                                            <span>Date Billed</span>
+                                        </label>
+                                        <div class="col-md-12">
+                                            <input type="text" class="form-control js-datepicker dateBilled"  th:value="${#temporals.format(pcr.dateBilled, 'MM/dd/yyyy')}"  name="dateBilled" value="" placeholder="Enter Date"   />
+                                        </div>
+                                    </div>
+
+                                </div>
+                                <a data-bs-toggle="modal" th:data-pcr-id="${pcr.pcrId}" data-bs-target="#myModal" href="#" class="link-danger pt-3 " style="text-decoration: none;" id="deleteButton">Delete</a>
+                            </form>
+                        </div>
+                    </div>
+            </div>
+        </div>
+
+            <button class="btn btn-info" id="loadMore" > Load More</button>
+
+
+        <script>
+            document.addEventListener("DOMContentLoaded", function () {
+                const form = document.getElementById("form");
+                if (form) {
+                    const clientNameInput = form.querySelector(".clientName"); // Note: Fixed capitalization
+                    const noteInput = form.querySelector(".note");
+                    const fileInput = form.querySelector(".file");
+                    const dateCompletedInput = form.querySelector(".dateCompleted");
+                    const card = form.closest(".card");
+                    function checkInputs() {
+                        const clientName = clientNameInput?.value.trim();
+                        const note = noteInput?.value.trim();
+                        const fileUploaded = fileInput?.files.length > 0;
+                        const dateCompleted = dateCompletedInput?.value.trim();
+
+                        if (clientName && note && fileUploaded && dateCompleted) {
+                            card?.classList.remove("bg-yellow");
+                            card?.classList.add("bg-green");
+                        } else {
+                            card?.classList.remove("bg-green");
+                            card?.classList.add("bg-yellow");
+                        }
+                    }
+                    clientNameInput?.addEventListener("input", checkInputs);
+                    noteInput?.addEventListener("input", checkInputs);
+                    fileInput?.addEventListener("change", checkInputs);
+                    dateCompletedInput?.addEventListener("input", checkInputs);
+                }
+            });
+
+            $('#myModal').on('show.bs.modal', function (event) {
+                var button = $(event.relatedTarget);  // Button that triggered the modal
+                var pcrId = button.data('pcr-id');   // Extract the pcrId from data-* attribute
+                var form = $('#deleteForm');  // Get the form
+                form.attr('action', '/pcr/delete/' + pcrId);  // Set the action URL to include the pcrId
+            });
+            let currentPage = 0; // Start at page 0
+            const pageSize = 6; // Number of items per page
+
+            document.getElementById('loadMore').addEventListener('click', function () {
+                currentPage++; // Increment the page number on each click
+                fetch(`/pcr/loadMore?page=${currentPage}&size=${pageSize}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        const container = $('#boxes');
+                        data.forEach(pcr => {
+                            // Create the card dynamically
+                            const colDiv = document.createElement('div');
+                            colDiv.className = 'col-md-4 bg';
+                            colDiv.innerHTML = `
+                <div class="card text-dark mb-2 ${pcr.className}">
+                    <div class="card-body">
+                        <form action="/tPcrMasters/add" method="post" novalidate="" class="form">
+                            <input type="hidden" class="pcrId" name="pcrId" value="${pcr.pcrId}">
+                            <div class="row mb-3">
+                                <div class="col-md-12">
+                                    <input type="text" class="form-control clientName" name="clientName" value="${pcr.clientName || ''}" placeholder="Client Name" maxlength="100" />
+                                </div>
+                            </div>
+                            <div class="row mb-3">
+                                <div class="col-md-12">
+                                    <textarea class="form-control note" name="notes" placeholder="Notes" maxlength="255" rows="5">${pcr.notes || ''}</textarea>
+                                </div>
+                            </div>
+                            <div class="row mb-3">
+                                <div class="col-md-12">
+                                    <label class="col-md-12">
+                                        <span>${pcr.fileName ? `<a href="/pcr/download/${pcr.pcrId}">Download</a>` : ''}</span>
+                                    </label>
+                                    <input class="form-control file" type="file" name="file" accept=".pdf,.doc,.docx">
+                                </div>
+                            </div>
+                            <div class="row">
+                                <div class="col-md-4">
+                                    <label class="col-md-12">
+                                        <span>Date Approved</span>
+                                    </label>
+                                    <div class="col-md-12">
+                                        <input type="text" class="form-control js-datepicker dateApproved" name="dateApproved" value="${pcr.dateApproved || ''}" placeholder="Enter Date">
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="col-md-12">
+                                        <span>Date Completed</span>
+                                    </label>
+                                    <div class="col-md-12">
+                                        <input type="text" class="form-control js-datepicker dateCompleted" name="dateCompleted" value="${pcr.dateCompleted || ''}" placeholder="Enter Date">
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="col-md-12">
+                                        <span>Date Billed</span>
+                                    </label>
+                                    <div class="col-md-12">
+                                        <input type="text" class="form-control js-datepicker dateBilled" name="dateBilled" value="${pcr.dateBilled || ''}" placeholder="Enter Date">
+                                    </div>
+                                </div>
+                            </div>
+                            <a data-bs-toggle="modal" data-pcr-id="${pcr.pcrId}" data-bs-target="#myModal" href="#" class="link-danger pt-3" style="text-decoration: none;" id="deleteButton">Delete</a>
+                        </form>
+                    </div>
+                </div>
+            `;
+                            container.append(colDiv); // Append the newly created card
+                        });
+
+                        // Reinitialize Flatpickr for newly added elements
+                        flatpickr('.js-datepicker', {
+                            dateFormat: "m/d/Y", // Use uppercase Y for full year (4 digits)
+                            allowInput: true
+                        });
+                    })
+                    .catch(error => {
+                        console.error('Error fetching data:', error);
+                    });
+            });
+
+
+
+
+        </script>
+
+        <div  class="col-md-4 bg" id="addBox" style="display: none;">
+        <div class="card bg-yellow text-dark mb-2"  >
+            <div class="card-body">
+                <form action="/tPcrMasters/add" method="post" novalidate="" class="form" th:object="${tPcrMaster}">
+                    <input type="hidden" class="pcrId" name="pcrId" >
+                    <div class="row mb-3">
+                        <div class="col-md-12">
+                            <input type="text" class="form-control clientName" name="clientName" value="" placeholder="Client Name" maxlength="100"  />
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-12">
+                            <textarea class="form-control note" name="notes" placeholder="Notes" maxlength="255"  rows="5"></textarea>
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-12">
+                            <input class="form-control file" type="file" name="file" accept=".pdf"  >
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-4">
+                            <label class="col-md-12">
+                                <span>Date Approved</span>
+                            </label>
+                            <div class="col-md-12">
+                                <input type="text" class="form-control js-datepicker dateApproved" th:value="${#temporals.format(tPcrMaster.dateApproved, 'MM/dd/yyyy')}" name="dateApproved" placeholder="Enter Date" />
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="col-md-12">
+                                <span>Date Completed</span>
+                            </label>
+                            <div class="col-md-12">
+                                <input type="text" class="form-control js-datepicker dateCompleted"  th:value="${#temporals.format(tPcrMaster.dateCompleted, 'MM/dd/yyyy')}"  name="dateCompleted" value="" placeholder="Enter Date"   />
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="col-md-12">
+                                <span>Date Billed</span>
+                            </label>
+                            <div class="col-md-12">
+                                <input type="text" class="form-control js-datepicker dateBilled"  th:value="${#temporals.format(tPcrMaster.dateBilled, 'MM/dd/yyyy')}"  name="dateBilled" value="" placeholder="Enter Date"   />
+                            </div>
+                        </div>
+
+                    </div>
+                    <a data-bs-toggle="modal"   data-bs-target="#myModal" href="#" class="link-danger pt-3 deleteButton" style="text-decoration: none;">Delete</a>
+                </form>
+            </div>
+        </div>
+        </div>
+    </div>
+    <!--end of div-->
+    </body>
+    </html>

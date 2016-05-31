@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org" xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout">
+    <head>
+        <title >[[#{app.title}]]</title>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+        <script th:src="@{/webjars/jquery/3.6.4/jquery.min.js}"></script>
+        <link th:href="@{/webjars/bootstrap/5.3.3/css/bootstrap.min.css}" rel="stylesheet" />
+        <link th:href="@{/webjars/flatpickr/4.6.13/dist/flatpickr.min.css}" rel="stylesheet" />
+        <link th:href="@{/css/app.css}" rel="stylesheet" />
+        <script th:src="@{/webjars/bootstrap/5.3.3/js/bootstrap.bundle.min.js}" defer></script>
+        <script th:src="@{/webjars/flatpickr/4.6.13/dist/flatpickr.min.js}" defer></script>
+        <script th:src="@{/js/app.js}" defer></script>
+        <link rel="stylesheet" href="/webjars/font-awesome/5.15.4/css/all.min.css">
+
+
+        <style>
+            label{
+                font-size: 15px;
+            }
+            input::placeholder, textarea::placeholder{
+                font-size: 13px;
+            }
+            input {
+                font-size: 13px;
+            }
+            .bg-green {
+                --bs-bg-opacity: 1;
+                background-color: rgb(210 233 214) !important;
+            }
+            .bg-yellow {
+                --bs-bg-opacity: 1;
+                background-color: rgb(237 230 196) !important;
+            }
+            a{
+                text-decoration: none;
+            }
+
+        </style>
+    </head>
+    <body>
+        <header class="bg-light">
+            <div class="container">
+                <nav class="navbar navbar-light navbar-expand-md">
+                    <a  th:href="@{/pcr/add}" class="navbar-brand">
+                        <img th:src="@{/images/logo.png}" th:alt="#{app.title}" width="30" height="30" class="d-inline-block align-top">
+                        <span class="ps-1">PCR <span style="color: darkgrey">Tracking</span></span>
+                    </a>
+                    <button type="button" class="navbar-toggler" data-bs-toggle="collapse" data-bs-target="#navbarToggle"
+                            th:aria-label="#{navigation.toggle}" aria-controls="navbarToggle" aria-expanded="false">
+                        <span class="navbar-toggler-icon"></span>
+                    </button>
+                    <div class="collapse navbar-collapse" id="navbarToggle">
+                        <ul class="navbar-nav ms-auto">
+                            <li class="navbar-item">
+                                <a th:href="@{/pcr/add}" class=" btn btn-primary" id="addPCRButton"><i class="fa fa-plus-circle"></i> Add PCR</a>
+                            </li>
+                        </ul>
+                    </div>
+                </nav>
+            </div>
+        </header>
+        <main class="my-5">
+            <div class="container">
+                <div class="modal" id="myModal">
+                    <div class="modal-dialog">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                               Delete PCR
+                                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                            </div>
+                            <div class="modal-body" style="text-align: center;">
+                               Are you sure you want to delete this PCR ?<br><br>
+
+                              <span>  <form id="deleteForm" class="mb-2" action="" method="POST">
+                                    <button type="submit" class="btn btn-danger">Confirm Delete</button>
+                                </form>
+                                      <button class="btn btn-outline-dark " data-bs-dismiss="modal">Cancel</button>
+                                  </span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <script>
+                    document.addEventListener("DOMContentLoaded", function () {
+                        $(document).on("input change", ".form input, .form textarea, .form select", function (e) {
+                            persistData(e.target.closest("form"));  // Call persistData with the closest form
+                            changeColor(e.target.closest("form"))
+                        });
+                        $(".js-datepicker").flatpickr({
+                            dateFormat: "m/d/Y", // Set format to month-day-year
+                            onChange: function (selectedDates, dateStr, instance) {
+                                const inputField = instance.input;  // Get the input field of the date picker
+                                inputField.dispatchEvent(new Event('input'));  // Trigger the input event
+                            }
+                        });
+
+                        function persistData(form) {
+                            const formData = new FormData(form);  // Create FormData from the specific form
+                            fetch('/pcr/persist', {
+                                method: 'POST',
+                                body: formData
+                            })
+                                .then(response => response.json())
+                                .then(data => {
+                                    if (data.success) {
+                                        // console.log('Data saved successfully');
+                                        form.querySelector('.pcrId').value = data.pcrId;  // Update pcrId field in the form
+                                    } else {
+                                        // console.error('Error saving data:', data.message);
+                                    }
+                                })
+                                .catch(error => console.error('Error:', error));
+                        }
+
+                        function changeColor(form){
+                            const clientNameInput = form.querySelector(".clientName"); // Note: Fixed capitalization
+                            const noteInput = form.querySelector(".note");
+                            const fileInput = form.querySelector(".file");
+                            const dateCompletedInput = form.querySelector(".dateCompleted");
+                            const card = form.closest(".card");
+                            function checkInputs() {
+                                const clientName = clientNameInput?.value.trim();
+                                const note = noteInput?.value.trim();
+                                const fileUploaded = fileInput?.files.length > 0;
+                                const dateCompleted = dateCompletedInput?.value.trim();
+
+                                if (clientName && note && fileUploaded && dateCompleted) {
+                                    card?.classList.remove("bg-yellow");
+                                    card?.classList.add("bg-green");
+                                } else {
+                                    card?.classList.remove("bg-green");
+                                    card?.classList.add("bg-yellow");
+                                }
+                            }
+                            clientNameInput?.addEventListener("input", checkInputs);
+                            noteInput?.addEventListener("input", checkInputs);
+                            fileInput?.addEventListener("change", checkInputs);
+                            dateCompletedInput?.addEventListener("input", checkInputs);
+                        }
+
+                        $(document).ready(function () {
+                            $("#addPCRButton").on("click", function (e) {
+                                e.preventDefault();
+                                const newBox = $("#addBox").clone();
+                                newBox.removeAttr("id");  // Remove the id to avoid duplicates
+                                newBox.show();
+                                $("#boxes").prepend(newBox);
+                                newBox.find(".js-datepicker").flatpickr();
+                            });
+                        });
+                    });
+
+
+                </script>
+                <p th:if="${MSG_SUCCESS}" class="alert alert-success mb-4" role="alert">[[${MSG_SUCCESS}]]</p>
+                <p th:if="${MSG_INFO}" class="alert alert-info mb-4" role="alert">[[${MSG_INFO}]]</p>
+                <p th:if="${MSG_ERROR}" class="alert alert-danger mb-4" role="alert">[[${MSG_ERROR}]]</p>
+                <div layout:fragment="content"/>
+            </div>
+        </main>
+
+    </body>
+</html>
